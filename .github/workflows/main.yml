@@ -17,3 +17,5 @@ jobs:
           node-version: '20'
       - run: npm install
       - run: npm start
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
