@@ -1,88 +1,101 @@
-const keepAlive = require('./server');
-const { Client, GatewayIntentBits } = require('discord.js');
+const Discord = require('discord.js');
 
-const client = new Client({
+const client = new Discord.Client({
   intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildVoiceStates,
+    Discord.GatewayIntentBits.Guilds,
+    Discord.GatewayIntentBits.GuildVoiceStates,
+    Discord.GatewayIntentBits.GuildPresences
   ],
+  presence: {
+    status: 'online',
+    activities: [{ name: 'за booopaaa', type: Discord.ActivityType.Watching }]
+  }
 });
 
 const TARGET_USER_ID = '1052622600259502132';
 const ALERT_CHANNEL_ID = '1466542405208510525';
 
-// Защита от двойных сообщений
-const lastSent = { join: 0, leave: 0 };
-const COOLDOWN = 3000; // 3 секунды
+// Кулдауны против дублей
+const lastSent = { join: 0, leave: 0, online: 0 };
+const COOLDOWN = 3000;
 
-const joinMessages = [
-  '😢 oh no... <@1052622600259502132> зашёл в **{channel}**... опять...',
-  '😭 Господи, опять он... <@1052622600259502132> подключился к **{channel}**',
-  '💀 <@1052622600259502132> пришёл в **{channel}**... мы обречены...',
-  '🥲 Нет только не это... <@1052622600259502132> в **{channel}**...',
-  '😵 <@1052622600259502132> зашёл в **{channel}**... начинается...',
-  '🫠 <@1052622600259502132> подключился к **{channel}**... молюсь чтобы он быстро ушёл',
-  '😖 Опять... <@1052622600259502132> в **{channel}**...',
-  '😔 <@1052622600259502132> зашёл в **{channel}**... сегодняшний день испорчен',
-  '🤦 <@1052622600259502132> снова в **{channel}**... когда же это закончится...',
-  '😢 <@1052622600259502132> в **{channel}**... все расходимся...',
-  '😢😢 <@1052622600259502132> зашёл... выживайте кто сможет...',
+// Грустные сообщения при заходе в войс
+const sadMessages = [
+  'Он пришёл... куда-нибудь прятаться.',
+  'Наши молитвы были услышаны... но не в хорошем смысле.',
+  'Кто-то выключите микрофон...',
+  'Он здесь. Спасайте себя кто может.',
+  'Боже, опять он...',
+  'Сервер замер в ужасе.',
+  'Страж вернулся на пост. Жалко всех нас.',
+  'Эхо его голоса уже звучит в наших кошмарах...'
 ];
 
-const leaveMessages = [
-  '🎉 ЕСТЬ БОГ! <@1052622600259502132> покинул **{channel}**! СВОБОДА!',
-  '🥳 УРАААА! <@1052622600259502132> вышел из **{channel}**! ПРАЗДНИК!',
-  '🎊 <@1052622600259502132> ушёл из **{channel}**! Тишина!',
-  '🥂 <@1052622600259502132> вылетел из **{channel}**! Шампанское!',
-  '🏆 <@1052622600259502132> покинул **{channel}**! Лучший день!',
-  '💃 <@1052622600259502132> вышел из **{channel}**! Врубаем музыку!',
-  '🙌 СЛАВА БОГАМ! <@1052622600259502132> больше не в **{channel}**!',
-  '🎆 <@1052622600259502132> ушёл из **{channel}**! Мир прекрасен!',
-  '🤩 <@1052622600259502132> вышел из **{channel}**! Наконец-то!',
-  '🎉🎉🎉 <@1052622600259502132> ушёл! Этот день стоит отметить!',
-  '🎊🎊🎊 <@1052622600259502132> ушёл! Фейерверки!',
+// Радостные сообщения при выходе из войса
+const happyMessages = [
+  'Оно ушло! Свобода!',
+  'Тишина... какая прекрасная тишина.',
+  'Ура! Можно дышать!',
+  'Он ушёл! Празднуем!',
+  'Наконец-то мир и покой!',
+  'Войс свободен! Хвала богам!',
+  'Тишиана наступила. Радуемся.'
 ];
 
-function pickRandom(arr) {
+// Сообщения при заходе в сеть
+const onlineMessages = [
+  'Он появился в сети... берегитесь.',
+  'booopaaa теперь онлайн. Прячьтесь.',
+  'Он нагрянул без предупреждения!',
+  'Новая жертва подключилась к серверу.',
+  'Он в сети. Все к бою!',
+  'Система обнаружила присутствие booopaaa. Эвакуация!'
+];
+
+function getRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-client.once('ready', () => {
-  console.log('🟢 Бот запущен! Следим за поперденем 👀');
-  client.user.setActivity('следит за поперденем');
+// === Голосовые каналы ===
+client.on('voiceStateUpdate', (oldState, newState) => {
+  if (newState.member.id !== TARGET_USER_ID) return;
+
+  // Заход в войс (не было в канале → появился)
+  if (!oldState.channel && newState.channel) {
+    if (Date.now() - lastSent.join < COOLDOWN) return;
+    lastSent.join = Date.now();
+    const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
+    if (channel) channel.send(getRandom(sadMessages));
+  }
+
+  // Выход из войса (был в канале → вышел)
+  if (oldState.channel && !newState.channel) {
+    if (Date.now() - lastSent.leave < COOLDOWN) return;
+    lastSent.leave = Date.now();
+    const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
+    if (channel) channel.send(getRandom(happyMessages));
+  }
 });
 
-client.on('voiceStateUpdate', (oldState, newState) => {
-  if (newState.member?.id !== TARGET_USER_ID) return;
+// === Статус онлайн ===
+client.on('presenceUpdate', (oldPresence, newPresence) => {
+  if (!oldPresence || !newPresence) return;
+  if (newPresence.userId !== TARGET_USER_ID) return;
 
-  const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
-  if (!channel) return;
+  // Проверяем: был не в сети → стал в сети
+  const wasOffline = oldPresence.status === 'offline';
+  const nowOnline = newPresence.status === 'online';
 
-  const now = Date.now();
-
-  // Заход в войс
-  if (!oldState.channelId && newState.channelId) {
-    if (now - lastSent.join < COOLDOWN) return;
-    lastSent.join = now;
-    const msg = pickRandom(joinMessages).replace('{channel}', newState.channel.name);
-    channel.send(msg);
+  if (wasOffline && nowOnline) {
+    if (Date.now() - lastSent.online < COOLDOWN) return;
+    lastSent.online = Date.now();
+    const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
+    if (channel) channel.send(getRandom(onlineMessages));
   }
+});
 
-  // Переход в другой войс
-  if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-    if (now - lastSent.join < COOLDOWN) return;
-    lastSent.join = now;
-    const msg = pickRandom(joinMessages).replace('{channel}', newState.channel.name);
-    channel.send(msg);
-  }
-
-  // Выход из войса
-  if (oldState.channelId && !newState.channelId) {
-    if (now - lastSent.leave < COOLDOWN) return;
-    lastSent.leave = now;
-    const msg = pickRandom(leaveMessages).replace('{channel}', oldState.channel.name);
-    channel.send(msg);
-  }
+client.on('ready', () => {
+  console.log(`Бот ${client.user.tag} запущен!`);
 });
 
 client.login(process.env.TOKEN);
