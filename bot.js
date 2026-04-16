@@ -13,7 +13,7 @@ const client = new Discord.Client({
 });
 
 const TARGET_USER_ID = '1052622600259502132';
-const ALERT_CHANNEL_ID = '1466542405208510525';
+const ALERT_CHANNEL_ID = '1494408748645748897';
 const HELRAY_ID = '<@815218915982311424>';
 
 const lastSent = { join: 0, leave: 0, online: 0 };
